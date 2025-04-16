@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 
-export function runTsc(): number[] {
+export function runTsc<T>(parser: (s: string | null) => T): T {
   const tsConfigPath = path.resolve('./tsconfig.json');
   if (!fs.existsSync(tsConfigPath)) {
     throw new Error('tsconfig.json not found');
@@ -12,13 +12,15 @@ export function runTsc(): number[] {
 
   try {
     execSync('tsc --noEmit', { stdio: 'pipe' }).toString();
-    return [];
+    return parser(null);
   } catch (error) {
     if (error instanceof Error && 'stdout' in error && error.stdout) {
-      return parseTscErrors(error.stdout.toString());
+      return parser(error.stdout.toString());
     } else {
       throw new Error('💀 An unknown error occurred while running TSC');
     }
+  } finally {
+    resetTsConfig();
   }
 }
 
@@ -42,12 +44,12 @@ export function resetTsConfig(): void {
   execSync('git checkout ./tsconfig.json', { stdio: 'pipe' }).toString();
 }
 
-function parseTscErrors(output: string): number[] {
+export function parseTscErrorCodes(tscError: string): number[] {
   const errorCodes: number[] = [];
   const regex = /error TS(\d+):/g;
   let match;
 
-  while ((match = regex.exec(output)) !== null) {
+  while ((match = regex.exec(tscError)) !== null) {
     errorCodes.push(parseInt(match[1], 10));
   }
 

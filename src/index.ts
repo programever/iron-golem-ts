@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { runAudit } from './lib/audit';
 import { generateHtmlReport } from './lib/report';
 import { stringNumberDecoder } from './data/decoders';
-import { runPreCommit } from './lib/preCommit';
+import { runAuditChanges } from './lib/auditChanges';
 
 const program = new Command();
 
@@ -18,7 +18,7 @@ program
   .option('-n, --nvm-path <path>', 'Determine if should use nvm, Eg: ~/.nvm/nvm.sh', '')
   .action(async (opts) => {
     if (opts.kind === 'changes') {
-      await runPreCommit();
+      await runAuditChanges();
       console.info('✅ No TypeScript Error for files changed in the latest commit.');
     } else {
       const sequence = stringNumberDecoder.verify(opts.sequence);

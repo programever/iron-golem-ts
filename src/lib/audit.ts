@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { runTsc } from './tsc';
+import { parseTscErrorCodes, runTsc } from './tsc';
 import { format, getDateMonthsAgo, subDays } from '../data/date';
 import * as JD from 'decoders';
 
@@ -162,7 +162,7 @@ function processCommit(
     hash: hash,
     commitDate,
     targetDate,
-    errorCodes: runTsc()
+    errorCodes: runTsc((s) => (s == null ? [] : parseTscErrorCodes(s)))
   };
   logAuditData(result);
   cache[hash] = result;

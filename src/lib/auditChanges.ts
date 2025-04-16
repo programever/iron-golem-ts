@@ -1,13 +1,12 @@
 import { execSync } from 'child_process';
-import { resetTsConfig, updateTsConfig } from './tsc';
+import { runTsc } from './tsc';
 
-export async function runPreCommit(): Promise<void> {
+export async function runAuditChanges(): Promise<void> {
   const changedFiles = getChangedFiles();
   if (changedFiles.length === 0) return;
 
-  updateTsConfig();
-  const tscOutput = runTsc();
-  resetTsConfig();
+  const tscOutput = runTsc((s) => s);
+  if (tscOutput == null) return;
 
   const filteredErrors = filterErrorsByChangedFiles(tscOutput, changedFiles);
   if (filteredErrors.length === 0) return;
@@ -24,18 +23,6 @@ function getChangedFiles(): string[] {
   return `${staged}\n${unstage}`
     .split('\n')
     .filter((file) => file.endsWith('.ts') || file.endsWith('.tsx'));
-}
-
-function runTsc(): string {
-  try {
-    return execSync('tsc --noEmit', { stdio: 'pipe' }).toString();
-  } catch (error) {
-    if (error instanceof Error && 'stdout' in error && error.stdout) {
-      return error.stdout.toString();
-    } else {
-      throw new Error('💀 An unknown error occurred while running TSC');
-    }
-  }
 }
 
 function filterErrorsByChangedFiles(tscOutput: string, changedFiles: string[]): string[] {

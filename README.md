@@ -133,7 +133,7 @@ npm run precommit:tsc
 
 ![Alt text](example/report.png)
 
-[https://html-preview.github.io/?url=https://github.com/programever/iron-golem-ts/blob/main/example/report.html](https://html-preview.github.io/?url=https://github.com/programever/iron-golem-ts/blob/main/example/report.html)
+[https://jsfiddle.net/programever/Lswyhp7u/3/](https://jsfiddle.net/programever/Lswyhp7u/3/)
 
 
 

@@ -17,6 +17,7 @@ program
   .option('-p, --path <path>', 'Path to generated file', 'tmp')
   .option('-n, --nvm-path <path>', 'Determine if should use nvm, Eg: ~/.nvm/nvm.sh', '')
   .action(async (opts) => {
+    console.info('🚀 Iron Golem is running...');
     if (opts.kind === 'changes') {
       await runAuditChanges();
       console.info('✅ No TypeScript Error for files changed in the latest commit.');

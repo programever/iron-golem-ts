@@ -44,14 +44,21 @@ export function resetTsConfig(): void {
   execSync('git checkout ./tsconfig.json', { stdio: 'pipe' }).toString();
 }
 
-export function parseTscErrorCodes(tscError: string): number[] {
-  const errorCodes: number[] = [];
-  const regex = /error TS(\d+):/g;
+export function parseTscErrors(tscOutput: string): Record<string, number[]> {
+  const errorsByFile: Record<string, number[]> = {};
+  const regex = /^([^\s()]+)\(\d+,\d+\): error TS(\d+):/gm;
   let match;
 
-  while ((match = regex.exec(tscError)) !== null) {
-    errorCodes.push(parseInt(match[1], 10));
+  while ((match = regex.exec(tscOutput)) !== null) {
+    const filePath = match[1].trim();
+    const errorCode = parseInt(match[2], 10);
+
+    if (!errorsByFile[filePath]) {
+      errorsByFile[filePath] = [];
+    }
+
+    errorsByFile[filePath].push(errorCode);
   }
 
-  return errorCodes;
+  return errorsByFile;
 }

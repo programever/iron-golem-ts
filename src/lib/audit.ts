@@ -1,7 +1,7 @@
 import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import { parseTscErrorCodes, runTsc } from './tsc';
+import { parseTscErrors, runTsc } from './tsc';
 import { format, getDateMonthsAgo, subDays } from '../data/date';
 import * as JD from 'decoders';
 
@@ -16,14 +16,16 @@ export type AuditData = {
   targetDate: Date;
   hash: string;
   commitDate: Date;
-  errorCodes: number[];
+  errors: {
+    [filePath: string]: number[]; // array of error codes per file
+  };
 };
 
 const auditDataDecoder = JD.exact({
   targetDate: JD.string.transform((v) => new Date(v)),
   hash: JD.string,
   commitDate: JD.string.transform((v) => new Date(v)),
-  errorCodes: JD.array(JD.number)
+  errors: JD.record(JD.array(JD.number))
 });
 
 export async function runAudit({
@@ -162,7 +164,7 @@ function processCommit(
     hash: hash,
     commitDate,
     targetDate,
-    errorCodes: runTsc((s) => (s == null ? [] : parseTscErrorCodes(s)))
+    errors: runTsc((s) => (s == null ? {} : parseTscErrors(s)))
   };
   logAuditData(result);
   cache[hash] = result;
@@ -185,11 +187,19 @@ function readNvmrc(): string | null {
   return fs.readFileSync(nvmrcPath, 'utf-8').trim();
 }
 
+export function countTotalErrors(errors: AuditData['errors']): number {
+  return Object.values(errors).reduce((total, codes) => total + codes.length, 0);
+}
+
+export function flattenErrors(errors: AuditData['errors']): number[] {
+  return Object.values(errors).reduce((acc, codes) => acc.concat(codes), []);
+}
+
 function logAuditData(auditData: AuditData): void {
   console.info(
     `Target date: ${format(auditData.targetDate, 'yyyy-MM-dd')} - ` +
       `Commit date: ${format(auditData.commitDate, 'yyyy-MM-dd')} - ` +
-      `Commit hash: ${auditData.hash.slice(0, 7)} - Error: ${auditData.errorCodes.length}`
+      `Commit hash: ${auditData.hash.slice(0, 7)} - Error: ${countTotalErrors(auditData.errors)}`
   );
 }
 

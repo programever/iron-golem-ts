@@ -72,7 +72,8 @@ tmp/iron-golem-ts/report.html
 
 You'll see:
 - A chart of error counts over time.
-- A sortable table showing error codes, how often they appear, and their severity.
+- A table showing error codes, how often they appear, and their severity.
+- A table files with error count and codes.
 
 ---
 
@@ -133,7 +134,7 @@ npm run precommit:tsc
 
 ![Alt text](example/report.png)
 
-[https://jsfiddle.net/programever/Lswyhp7u/3/](https://jsfiddle.net/programever/Lswyhp7u/3/)
+[https://jsfiddle.net/programever/Lswyhp7u/11/](https://jsfiddle.net/programever/Lswyhp7u/11/)
 
 
 

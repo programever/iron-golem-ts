@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AuditData } from './audit';
+import { countTotalErrors, flattenErrors, AuditData } from './audit';
 import { format } from '../data/date';
 import { getSeverity } from '../data/tsError';
 
@@ -13,13 +13,17 @@ export async function generateHtmlReport(pathStr: string, data: AuditData[]) {
 
   const chartData = data
     .sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime())
-    .map((d) => ({ date: d.targetDate, count: d.errorCodes.length }));
+    .map((d) => ({ date: d.targetDate, count: countTotalErrors(d.errors) }));
 
   const latestData: AuditData | null = data.sort(
     (a, b) => b.targetDate.getTime() - a.targetDate.getTime()
   )[0];
 
-  const errorSummary = latestData?.errorCodes.reduce(
+  if (!latestData) {
+    throw new Error('No audit data available');
+  }
+
+  const errorSummary = flattenErrors(latestData.errors).reduce(
     (summary: Record<string, { count: number }>, codeNum) => {
       const code = `TS${codeNum}`;
       if (!summary[code]) {
@@ -36,6 +40,22 @@ export async function generateHtmlReport(pathStr: string, data: AuditData[]) {
     .map(
       ([code, { count }]) =>
         `<tr><td>${code}</td><td>${count}</td><td>${getSeverity(code)}</td></tr>`
+    )
+    .join('\n');
+
+  const fileBreakdownRows = Object.entries(latestData.errors)
+    .map(([filePath, codes]) => ({
+      filePath,
+      count: codes.length,
+      codes: [...new Set(codes)]
+        .sort((a, b) => a - b)
+        .map((c) => `TS${c}`)
+        .join(', ')
+    }))
+    .sort((a, b) => b.count - a.count)
+    .map(
+      ({ filePath, count, codes }) =>
+        `<tr><td>${count}</td><td>${filePath}</td><td>${codes}</td></tr>`
     )
     .join('\n');
 
@@ -87,13 +107,22 @@ export async function generateHtmlReport(pathStr: string, data: AuditData[]) {
         });
       </script>
 
-      <h2>Current Error Breakdown (Total Errors: ${latestData?.errorCodes.length || 0})</h2>
+      <h2>Current Error Breakdown (Total Errors: ${countTotalErrors(latestData.errors)})</h2>
       <table>
         <thead>
           <tr><th>Error Code</th><th>Count</th><th>Severity</th></tr>
         </thead>
         <tbody>
           ${tableRows}
+        </tbody>
+      </table>
+      <h2>Errors by File</h2>
+      <table>
+        <thead>
+          <tr><th>Errors</th><th>File</th><th>Error Codes</th></tr>  
+        </thead>
+        <tbody>
+          ${fileBreakdownRows}
         </tbody>
       </table>
       <footer>

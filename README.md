@@ -132,11 +132,9 @@ npm run precommit:tsc
 
 ## 🧪 Example Report
 
-![Alt text](example/report.png)
+![Report](example/report.png)
 
 [https://jsfiddle.net/programever/Lswyhp7u/11/](https://jsfiddle.net/programever/Lswyhp7u/11/)
-
-
 
 ---
 

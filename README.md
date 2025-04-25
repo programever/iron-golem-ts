@@ -39,13 +39,14 @@ npm link
 ## 🚀 Usage
 
 ### Use cases:
-- **Audit**: Check your TypeScript errors over time. Please use -k `none`.
+- **Audit**: Check your TypeScript errors over time. Please use -k `audit`.
 - **Git Changes**: Check your TypeScript errors for the current git changes. Please use -k `changes`. This will be used as a pre-commit hook to prevent errors from being committed.
 
 ```bash
 iron-golem-ts [options]
-iron-golem-ts -k none -s 10 -m 1 -p build -n ~/.nvm/nvm.sh
+iron-golem-ts -k audit -s 10 -m 1 -p build -n ~/.nvm/nvm.sh
 iron-golem-ts -k changes
+iron-golem-ts -k report -rp / -rd 3
 ```
 
 > **Note:** `iron-golem-ts` runs `tsc --noEmit` with `strict` and `strictNullChecks` options enabled. This ensures maximum type safety and strict mode during your audits.
@@ -54,13 +55,17 @@ iron-golem-ts -k changes
 
 | Option               | Description                                                | Default    |
 |----------------------|------------------------------------------------------------|------------|
-| `-k, --kind`         | Kind is either `none` or `changes`                         | `none`     |
+| `-k, --kind`         | Kind is `audit` - `changes` - `report`                     | `audit`    |
 | `-s, --sequence`     | Day interval for Git history audit                         | `7`        |
 | `-m, --max-months`   | Maximum age for audit (in months)                          | `3`        |
 | `-p, --path`         | Output path for the generated report                       | `tmp`      |
-| `-n, --nvm-path`     | Determine if should use nvm Eg: `~/.nvm/nvm.sh`)           | ``         |
+| `-n, --nvm-path`     | Determine if should use nvm Eg: `~/.nvm/nvm.sh`            | ``         |
+| `-rp, --report-path` | What is the path to run report Eg: `/app`                  | `/`        |
+| `-rd, --report-depth`| What is the depth level that report should go down         | `999`      |
 
-> **Note:** `kind` `none` will use `-s` `-m` `-p` `-n` options. `kind` `changes` will not use anything, it will just base on your current branch and run tsc.
+> **Note:** `kind` `audit` will use `-s` `-m` `-p` `-n` options. 
+> **Note:** `kind` `changes` do not use any options.
+> **Note:** `kind` `report` will use `-rp` `-rd` options.
 
 ### View the HTML report
 
@@ -84,6 +89,10 @@ tmp/iron-golem-ts/
   ├── cache.json      # Parsed error data per commit
   └── report.html     # Full HTML report
 ```
+
+![Report](example/report.png)
+
+[https://jsfiddle.net/programever/Lswyhp7u/11/](https://jsfiddle.net/programever/Lswyhp7u/11/)
 
 ---
 
@@ -128,13 +137,56 @@ And optionally:
 npm run precommit:tsc
 ```
 
+Example:
+```bash
+vc-fenx on  develop [⇣+] via ⬢ v22.15.0
+➜ git commit -m "Init commit"
+🚀 Checking strict TypeScript is running...
+💀 TypeScript errors for files:
+src/components/orders-sales/main.tsx(43,7): error TS2531: Object is possibly 'null'.
+src/components/orders-sales/main.tsx(252,21): error TS2322: Type 'SaleReport[] | undefined' is not assignable to type 'SaleReport[]'.
+src/components/orders-sales/main.tsx(273,11): error TS2322: Type 'SaleData | undefined' is not assignable to type 'SaleData'.
+husky - pre-commit hook exited with code 1 (error)
+```
+
 ---
 
-## 🧪 Example Report
+## 🗂️ Report by Folder
 
-![Report](example/report.png)
+To generate a report by folder:
 
-[https://jsfiddle.net/programever/Lswyhp7u/11/](https://jsfiddle.net/programever/Lswyhp7u/11/)
+```jsonc
+// package.json
+"scripts": {
+  "report:tsc": "iron-golem-ts -k report -rp /config -rd 3" 
+}
+```
+
+And optionally:
+
+```bash
+npm run report:tsc
+```
+
+Example:
+```bash
+🚀 Iron Golem is running...
+Legend: 🔴 ≥75% | 🟠 50–74% | 🟢 25–49% | ⚪ <25% (relative to parent folder)
+Run for: /config with 3 max level depth
+🔴 config: 94 - 100%
+  ├── ⚪ axios.ts: 4 - 4%
+  ├── 🔴 catalog: 86 - 91%
+    ├── 🟠 filter-group-configurations.ts: 48 - 56%
+    └── 🟢 hotfilter-group-configurations.ts: 38 - 44%
+  └── ⚪ environment.tsx: 4 - 4%
+
+```
+
+---
+
+## 🧶 TODO:
+
+- Support Yarn
 
 ---
 

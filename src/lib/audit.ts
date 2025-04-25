@@ -101,7 +101,7 @@ function generateCommits(
   }
 
   const dateStr = format(targetDate, 'yyyy-MM-dd');
-  const hash = execSync(`git rev-list -1 --before="${dateStr}" origin/${currentBranch}`, {
+  const hash = execSync(`git rev-list -1 --before="${dateStr}" ${currentBranch}`, {
     stdio: 'pipe'
   })
     .toString()

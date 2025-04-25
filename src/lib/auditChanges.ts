@@ -18,11 +18,12 @@ export async function runAuditChanges(): Promise<void> {
 }
 
 function getChangedFiles(): string[] {
-  const staged = execSync('git diff --name-only --cached', { stdio: 'pipe' }).toString();
-  const unstage = execSync('git diff --name-only', { stdio: 'pipe' }).toString();
-  return `${staged}\n${unstage}`
+  const output = execSync('git status --porcelain', { encoding: 'utf-8' });
+  return output
     .split('\n')
-    .filter((file) => file.endsWith('.ts') || file.endsWith('.tsx'));
+    .map((line: string) => line.trim())
+    .filter((line: string) => line.length > 0)
+    .map((line: string) => line.slice(3));
 }
 
 function filterErrorsByChangedFiles(tscOutput: string, changedFiles: string[]): string[] {

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { countDecoder, nonNegativeCountDecoder } from './decoders';
+import { countDecoder, nonNegativeCountDecoder } from '../../src/data/decoders';
 
 describe('countDecoder', () => {
   it('accepts positive whole numbers', () => {

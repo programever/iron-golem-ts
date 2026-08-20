@@ -192,6 +192,9 @@ Run for: /config with 3 max level depth
 
 ## 🧑‍💻 Development
 
+Developed on Node 24 (see `.nvmrc`); the published package supports Node >= 20 and
+CI runs the suite on 20, 22 and 24.
+
 ```bash
 npm install
 npm run check   # tsc --noEmit, eslint and the test suite
@@ -199,8 +202,33 @@ npm run build
 ```
 
 Tests use the built-in Node test runner (`node --test`); no extra dependency is
-required. They live next to the code they cover as `*.test.ts` and are excluded
-from the published build.
+required. They live in `test/`, mirroring the `src/` layout, and are type-checked
+and linted along with the source but excluded from the published build.
+
+---
+
+## 🚢 Releasing
+
+Publishing is automated. Pushing (or merging) to `main` runs CI on Node 20, 22 and
+24, and then publishes to npm **only if `version` in `package.json` is not already
+on the registry**. Pushes that do not change the version pass through without
+publishing.
+
+To cut a release:
+
+```bash
+npm version patch   # or minor / major
+git push --follow-tags
+```
+
+The workflow builds `dist/` via `prepublishOnly`, publishes with
+[npm provenance](https://docs.npmjs.com/generating-provenance-statements), and
+tags the commit `v<version>`.
+
+**One-time setup:** add an npm
+[granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens)
+with publish rights for this package as the repository secret `NPM_TOKEN`
+(*Settings → Secrets and variables → Actions*).
 
 ---
 

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { parseJsonc } from './jsonc';
+import { parseJsonc } from '../../src/data/jsonc';
 
 describe('parseJsonc', () => {
   it('parses plain JSON', () => {

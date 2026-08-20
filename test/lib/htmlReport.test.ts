@@ -3,8 +3,8 @@ import { describe, it } from 'node:test';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { AuditData } from './audit';
-import { generateHtmlReport } from './htmlReport';
+import { AuditData } from '../../src/lib/audit';
+import { generateHtmlReport } from '../../src/lib/htmlReport';
 
 function auditData(targetDate: Date, errors: AuditData['errors']): AuditData {
   return { targetDate, commitDate: targetDate, hash: 'abc1234', errors };

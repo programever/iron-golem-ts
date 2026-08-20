@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { format, getDateMonthsAgo, subDays } from './date';
+import { format, getDateMonthsAgo, subDays } from '../../src/data/date';
 
 describe('format', () => {
   it('zero-pads month and day', () => {

@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { buildNodeFromErrors, parseTscErrorLine, parseTscErrors } from './tsc';
+import { buildNodeFromErrors, parseTscErrorLine, parseTscErrors } from '../../src/lib/tsc';
 
 const TSC_OUTPUT = [
   "src/a.ts(43,7): error TS2531: Object is possibly 'null'.",

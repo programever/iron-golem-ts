@@ -1,6 +1,6 @@
 {
   "name": "iron-golem-ts",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "TypeScript strict mode enforcer and historical analyzer via git.",
   "main": "dist/index.js",
   "bin": {
@@ -10,7 +10,7 @@
     "build": "tsc -p tsconfig.build.json",
     "tsc": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
-    "test": "node --require ts-node/register --test src/*/*.test.ts",
+    "test": "node --require ts-node/register --test test/*/*.test.ts",
     "check": "npm run tsc && npm run lint && npm run test"
   },
   "dependencies": {
@@ -18,7 +18,7 @@
     "decoders": "^2.7.0"
   },
   "devDependencies": {
-    "@types/node": "^20.10.5",
+    "@types/node": "^24.13.3",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
     "@typescript-eslint/parser": "^6.19.1",
     "eslint": "^8.56.0",
@@ -41,7 +41,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/programever/iron-golem-ts"
+    "url": "git+https://github.com/programever/iron-golem-ts.git"
   },
   "bugs": {
     "url": "https://github.com/programever/iron-golem-ts/issues"
@@ -49,6 +49,9 @@
   "homepage": "https://github.com/programever/iron-golem-ts",
   "author": "Programever",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "files": [
     "dist",
     "README.md",

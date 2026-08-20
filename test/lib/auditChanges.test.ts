@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { describe, it } from 'node:test';
-import { filterErrorsByChangedFiles, parseStatusEntries } from './auditChanges';
+import { filterErrorsByChangedFiles, parseStatusEntries } from '../../src/lib/auditChanges';
 
 describe('parseStatusEntries', () => {
   it('keeps the full path for unstaged modifications', () => {

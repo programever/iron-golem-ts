@@ -1,5 +1,6 @@
+import * as path from 'path';
 import { execSync } from 'child_process';
-import { runTsc } from './tsc';
+import { parseTscErrorLine, runTsc } from './tsc';
 
 export async function runAuditChanges(): Promise<void> {
   const changedFiles = getChangedFiles();
@@ -17,19 +18,48 @@ export async function runAuditChanges(): Promise<void> {
   process.exit(1);
 }
 
-function getChangedFiles(): string[] {
-  const output = execSync('git status --porcelain', { encoding: 'utf-8' });
-  return output
-    .split('\n')
-    .map((line: string) => line.trim())
-    .filter((line: string) => line.length > 0)
-    .map((line: string) => line.slice(3));
+/**
+ * `--porcelain -z` keeps the fixed-width `XY ` prefix but drops git's C-style
+ * quoting, so paths with spaces or unicode survive intact. `-uall` is required
+ * because git otherwise collapses an untracked directory into a single entry,
+ * hiding every new file inside it.
+ */
+export function getChangedFiles(): string[] {
+  const output = execSync('git status --porcelain -z -uall', { encoding: 'utf-8' });
+  return parseStatusEntries(output.split('\0'));
 }
 
-function filterErrorsByChangedFiles(tscOutput: string, changedFiles: string[]): string[] {
-  const filteredLines = tscOutput.split('\n').filter((line) => {
-    return changedFiles.some((file) => line.includes(file));
-  });
+export function parseStatusEntries(entries: string[]): string[] {
+  const files: string[] = [];
 
-  return filteredLines;
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index];
+    if (entry === undefined || entry.length < 4) {
+      continue;
+    }
+
+    files.push(entry.slice(3));
+
+    // Renames and copies emit the source path as its own entry; skip it.
+    const status = entry.slice(0, 2);
+    if (status.includes('R') || status.includes('C')) {
+      index += 1;
+    }
+  }
+
+  return files;
+}
+
+export function filterErrorsByChangedFiles(tscOutput: string, changedFiles: string[]): string[] {
+  const changed = new Set(changedFiles.map(normalizePath));
+
+  return tscOutput.split('\n').filter((line) => {
+    const parsed = parseTscErrorLine(line);
+    return parsed !== null && changed.has(normalizePath(parsed.filePath));
+  });
+}
+
+/** Compare whole paths, so `src/a.ts` no longer matches `src/a.ts.bak`. */
+function normalizePath(filePath: string): string {
+  return path.normalize(filePath).split(path.sep).join('/').replace(/^\.\//, '');
 }

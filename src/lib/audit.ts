@@ -9,7 +9,7 @@ export type AuditOptions = {
   pathStr: string;
   sequence: number;
   maxMonthAgo: number;
-  nvmPath: string;
+  nvmPath: string | null;
 };
 
 export type AuditData = {
@@ -34,6 +34,13 @@ export async function runAudit({
   maxMonthAgo,
   nvmPath
 }: AuditOptions): Promise<AuditData[]> {
+  if (!Number.isInteger(sequence) || sequence < 1) {
+    throw new Error('💀 Sequence must be a whole number of days >= 1');
+  }
+  if (!Number.isInteger(maxMonthAgo) || maxMonthAgo < 1) {
+    throw new Error('💀 Max months must be a whole number >= 1');
+  }
+
   throwIfUnCommittedChanges();
 
   const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { stdio: 'pipe' })
@@ -54,12 +61,25 @@ export async function runAudit({
     maxDate: getDateMonthsAgo(maxMonthAgo),
     seenHashes: new Set<string>()
   };
-  const commits = generateCommits(generateCommitOptions, []);
-  const auditData = generateAuditData(nvmPath, cachePath, cache, commits);
 
-  revertToOriginalBranch(nvmPath, currentBranch);
+  // The audit checks out historical commits, so every exit path -- including
+  // Ctrl-C -- has to put the repository back on the original branch.
+  const onInterrupt = (): void => {
+    console.info('\n🧹 Interrupted, restoring your branch...');
+    revertToOriginalBranch(nvmPath, currentBranch);
+    process.exit(130);
+  };
+  process.on('SIGINT', onInterrupt);
+  process.on('SIGTERM', onInterrupt);
 
-  return auditData;
+  try {
+    const commits = generateCommits(generateCommitOptions, []);
+    return generateAuditData(nvmPath, cachePath, cache, commits);
+  } finally {
+    process.off('SIGINT', onInterrupt);
+    process.off('SIGTERM', onInterrupt);
+    revertToOriginalBranch(nvmPath, currentBranch);
+  }
 }
 
 function throwIfUnCommittedChanges() {
@@ -125,11 +145,11 @@ function generateAuditData(
   cache: Record<string, AuditData>,
   commits: CommitData[]
 ): AuditData[] {
-  if (commits.length === 0) {
+  const [commit, ...rest] = commits;
+  if (commit === undefined) {
     return [];
   }
 
-  const [commit, ...rest] = commits;
   const { hash, targetDate, commitDate } = commit;
   const auditData = processCommit(nvmPath, hash, targetDate, commitDate, cache);
 
@@ -179,7 +199,7 @@ function useNvm(nvmPath: string): void {
   execSync(`bash -c "source ${nvmPath} && nvm use ${nvmVersion}"`, { stdio: 'ignore' });
 }
 
-function readNvmrc(): string | null {
+function readNvmrc(): string {
   const nvmrcPath = path.resolve('.nvmrc');
   if (!fs.existsSync(nvmrcPath)) {
     throw new Error('💀 .nvmrc file not found');

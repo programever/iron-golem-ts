@@ -1,11 +1,23 @@
 #!/usr/bin/env node
 
+import * as path from 'path';
 import { Command } from 'commander';
+import * as JD from 'decoders';
 import { runAudit } from './lib/audit';
 import { runAuditChanges } from './lib/auditChanges';
 import { runReport } from './lib/report';
 import { generateHtmlReport } from './lib/htmlReport';
-import { stringNumberDecoder } from './data/decoders';
+import { countDecoder, nonNegativeCountDecoder } from './data/decoders';
+
+const optionsDecoder = JD.object({
+  kind: JD.oneOf(['audit', 'changes', 'report'] as const),
+  sequence: countDecoder,
+  maxMonths: countDecoder,
+  path: JD.string,
+  nvmPath: JD.string,
+  reportPath: JD.string,
+  reportDepth: nonNegativeCountDecoder
+});
 
 const program = new Command();
 
@@ -19,30 +31,38 @@ program
   .option('-n, --nvm-path <path>', 'Determine if should use nvm, Eg: ~/.nvm/nvm.sh', '')
   .option('-rp, --report-path <path>', 'Path to run report', '/')
   .option('-rd, --report-depth <number>', 'How deep the report should go down?', '999')
-  .action(async (opts) => {
+  .action(async (rawOpts: unknown) => {
     console.info('🚀 Iron Golem is running...');
+
+    const opts = optionsDecoder.verify(rawOpts);
     switch (opts.kind) {
-      case 'report':
-        const reportDepth = stringNumberDecoder.verify(opts.reportDepth);
-        await runReport(reportDepth, opts.reportPath);
+      case 'report': {
+        await runReport(opts.reportDepth, opts.reportPath);
         break;
-      case 'changes':
+      }
+      case 'changes': {
         await runAuditChanges();
         console.info('✅ No TypeScript Error for files changed in the latest commit.');
         break;
-      default:
-        const sequence = stringNumberDecoder.verify(opts.sequence);
-        const maxMonthAgo = stringNumberDecoder.verify(opts.maxMonths);
+      }
+      case 'audit': {
         const results = await runAudit({
-          sequence,
-          maxMonthAgo,
+          sequence: opts.sequence,
+          maxMonthAgo: opts.maxMonths,
           pathStr: opts.path,
           nvmPath: opts.nvmPath === '' ? null : opts.nvmPath
         });
         await generateHtmlReport(opts.path, results);
-        console.info('✅ Report generated in tmp/tsc-history/report.html');
+        console.info(
+          `✅ Report generated in ${path.join(opts.path, 'iron-golem-ts', 'report.html')}`
+        );
         break;
+      }
     }
   });
 
-program.parse();
+program.parseAsync().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(message.startsWith('💀') ? message : `💀 ${message}`);
+  process.exit(1);
+});

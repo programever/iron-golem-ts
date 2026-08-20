@@ -11,15 +11,15 @@ export async function generateHtmlReport(pathStr: string, data: AuditData[]) {
     fs.mkdirSync(tmpPath, { recursive: true });
   }
 
-  const chartData = data
-    .sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime())
-    .map((d) => ({ date: d.targetDate, count: countTotalErrors(d.errors) }));
+  // Sort a copy: `sort` is in-place and `data` belongs to the caller.
+  const byDateAscending = [...data].sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime());
+  const chartData = byDateAscending.map((d) => ({
+    date: d.targetDate,
+    count: countTotalErrors(d.errors)
+  }));
 
-  const latestData: AuditData | null = data.sort(
-    (a, b) => b.targetDate.getTime() - a.targetDate.getTime()
-  )[0];
-
-  if (!latestData) {
+  const latestData = byDateAscending[byDateAscending.length - 1];
+  if (latestData === undefined) {
     throw new Error('No audit data available');
   }
 
@@ -39,7 +39,7 @@ export async function generateHtmlReport(pathStr: string, data: AuditData[]) {
     .sort(([, summaryA], [, summaryB]) => summaryB.count - summaryA.count)
     .map(
       ([code, { count }]) =>
-        `<tr><td>${code}</td><td>${count}</td><td>${getSeverity(code)}</td></tr>`
+        `<tr><td>${escapeHtml(code)}</td><td>${count}</td><td>${escapeHtml(getSeverity(code))}</td></tr>`
     )
     .join('\n');
 
@@ -55,7 +55,7 @@ export async function generateHtmlReport(pathStr: string, data: AuditData[]) {
     .sort((a, b) => b.count - a.count)
     .map(
       ({ filePath, count, codes }) =>
-        `<tr><td>${count}</td><td>${filePath}</td><td>${codes}</td></tr>`
+        `<tr><td>${count}</td><td>${escapeHtml(filePath)}</td><td>${escapeHtml(codes)}</td></tr>`
     )
     .join('\n');
 
@@ -136,6 +136,15 @@ export async function generateHtmlReport(pathStr: string, data: AuditData[]) {
   `;
 
   fs.writeFileSync(htmlFile, html, 'utf-8');
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function getReportCss(): string {

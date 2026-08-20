@@ -3,28 +3,25 @@ import { buildNodeFromErrors, NodeTS, parseTscErrors, runTsc } from './tsc';
 export async function runReport(maxDepth: number = Infinity, startPath: string): Promise<void> {
   const tscOutput = runTsc((s) => s);
   if (tscOutput == null) {
-    console.error('💫 No error! Woohooo!!!');
+    console.info('💫 No error! Woohooo!!!');
     return;
   }
 
   const errors = parseTscErrors(tscOutput);
   const nodes = buildNodeFromErrors(errors);
-  const result = printErrorTree(nodes, maxDepth, startPath);
-  console.log('Legend: 🔴 ≥75% | 🟠 50–74% | 🟢 25–49% | ⚪ <25% (relative to parent folder)');
-  console.log(`Run for: ${startPath} with ${maxDepth} max level depth`);
-  console.log(result);
+  const startingNode = findStartingNode(nodes, startPath.split('/').filter(Boolean));
 
-  process.exit(0);
-}
-
-function printErrorTree(root: NodeTS, maxDepth: number = Infinity, startPath: string = ''): string {
-  const pathParts = startPath.split('/').filter(Boolean);
-  const startingNode = findStartingNode(root, pathParts);
-
-  if (!startingNode) {
-    return 'Error: Specified start path does not exist in the tree.';
+  if (startingNode === null) {
+    console.error(`💀 Specified start path does not exist in the tree: ${startPath}`);
+    process.exit(1);
   }
 
+  console.info('Legend: 🔴 ≥75% | 🟠 50–74% | 🟢 25–49% | ⚪ <25% (relative to parent folder)');
+  console.info(`Run for: ${startPath} with ${maxDepth} max level depth`);
+  console.info(printErrorTree(startingNode, maxDepth));
+}
+
+function printErrorTree(startingNode: NodeTS, maxDepth: number = Infinity): string {
   return calculateAndPrintTree(
     startingNode,
     startingNode.errorCount,
@@ -36,11 +33,11 @@ function printErrorTree(root: NodeTS, maxDepth: number = Infinity, startPath: st
 }
 
 function findStartingNode(root: NodeTS, startPath: string[]): NodeTS | null {
-  if (startPath.length === 0) {
+  const [current, ...rest] = startPath;
+  if (current === undefined) {
     return root;
   }
 
-  const [current, ...rest] = startPath;
   const child = root.children.get(current);
   if (!child) {
     return null; // If the path is invalid or does not exist

@@ -30,7 +30,7 @@ Or clone manually:
 git clone https://github.com/programever/iron-golem-ts
 cd iron-golem-ts
 npm install
-npm build
+npm run build
 npm link
 ```
 
@@ -51,17 +51,19 @@ iron-golem-ts -k report -rp / -rd 3
 
 > **Note:** `iron-golem-ts` runs `tsc --noEmit` with `strict` and `strictNullChecks` options enabled. This ensures maximum type safety and strict mode during your audits.
 
+> **Note:** The audited project's own TypeScript (`node_modules/.bin/tsc`) is used, so historical commits are checked with the compiler version they were written against.
+
 ### Options
 
 | Option               | Description                                                | Default    |
 |----------------------|------------------------------------------------------------|------------|
 | `-k, --kind`         | Kind is `audit` - `changes` - `report`                     | `audit`    |
-| `-s, --sequence`     | Day interval for Git history audit                         | `7`        |
-| `-m, --max-months`   | Maximum age for audit (in months)                          | `3`        |
+| `-s, --sequence`     | Day interval for Git history audit (whole number >= 1)     | `7`        |
+| `-m, --max-months`   | Maximum age for audit, in months (whole number >= 1)       | `3`        |
 | `-p, --path`         | Output path for the generated report                       | `tmp`      |
 | `-n, --nvm-path`     | Determine if should use nvm Eg: `~/.nvm/nvm.sh`            | ``         |
 | `-rp, --report-path` | What is the path to run report Eg: `/app`                  | `/`        |
-| `-rd, --report-depth`| What is the depth level that report should go down         | `999`      |
+| `-rd, --report-depth`| What is the depth level that report should go down (>= 0)  | `999`      |
 
 > **Note:** `kind` `audit` will use `-s` `-m` `-p` `-n` options. 
 > **Note:** `kind` `changes` do not use any options.
@@ -116,7 +118,11 @@ tmp/iron-golem-ts/
 
 - Uses your current working branch (e.g., `develop`).
 - Aborts if there are uncommitted files.
-- Resets back to the original working branch after completion.
+- Resets back to the original working branch after completion, including when the
+  audit fails part-way through or you interrupt it with Ctrl-C.
+- Your `tsconfig.json` is temporarily rewritten to force strict mode, then restored
+  byte-for-byte from an in-memory snapshot. Uncommitted edits to it are never lost,
+  and comments (JSONC) are supported.
 
 ---
 
@@ -175,12 +181,26 @@ Legend: 🔴 ≥75% | 🟠 50–74% | 🟢 25–49% | ⚪ <25% (relative to pare
 Run for: /config with 3 max level depth
 🔴 config: 94 - 100%
   ├── ⚪ axios.ts: 4 - 4%
-  ├── 🔴 catalog: 86 - 91%
+  ├── 🔴 catalog: 86 - 92%
     ├── 🟠 filter-group-configurations.ts: 48 - 56%
     └── 🟢 hotfilter-group-configurations.ts: 38 - 44%
   └── ⚪ environment.tsx: 4 - 4%
 
 ```
+
+---
+
+## 🧑‍💻 Development
+
+```bash
+npm install
+npm run check   # tsc --noEmit, eslint and the test suite
+npm run build
+```
+
+Tests use the built-in Node test runner (`node --test`); no extra dependency is
+required. They live next to the code they cover as `*.test.ts` and are excluded
+from the published build.
 
 ---
 

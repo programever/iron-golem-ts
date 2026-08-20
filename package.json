@@ -7,9 +7,11 @@
     "iron-golem-ts": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "tsc": "tsc --noEmit",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "test": "node --require ts-node/register --test src/*/*.test.ts",
+    "check": "npm run tsc && npm run lint && npm run test"
   },
   "dependencies": {
     "commander": "^11.0.0",
@@ -46,5 +48,10 @@
   },
   "homepage": "https://github.com/programever/iron-golem-ts",
   "author": "Programever",
-  "license": "MIT"
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
 }

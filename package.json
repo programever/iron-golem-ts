@@ -1,6 +1,6 @@
 {
   "name": "iron-golem-ts",
-  "version": "0.1.13",
+  "version": "0.2.0",
   "description": "TypeScript strict mode enforcer and historical analyzer via git.",
   "main": "dist/index.js",
   "bin": {

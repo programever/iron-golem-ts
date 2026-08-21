@@ -39,6 +39,7 @@ npm link
 ## 🚀 Usage
 
 ### Use cases:
+
 - **Audit**: Check your TypeScript errors over time. Please use -k `audit`.
 - **Git Changes**: Check your TypeScript errors for the current git changes. Please use -k `changes`. This will be used as a pre-commit hook to prevent errors from being committed.
 
@@ -55,17 +56,19 @@ iron-golem-ts -k report -rp / -rd 3
 
 ### Options
 
-| Option               | Description                                                | Default    |
-|----------------------|------------------------------------------------------------|------------|
-| `-k, --kind`         | Kind is `audit` - `changes` - `report`                     | `audit`    |
-| `-s, --sequence`     | Day interval for Git history audit (whole number >= 1)     | `7`        |
-| `-m, --max-months`   | Maximum age for audit, in months (whole number >= 1)       | `3`        |
-| `-p, --path`         | Output path for the generated report                       | `tmp`      |
-| `-n, --nvm-path`     | Determine if should use nvm Eg: `~/.nvm/nvm.sh`            | ``         |
-| `-rp, --report-path` | What is the path to run report Eg: `/app`                  | `/`        |
-| `-rd, --report-depth`| What is the depth level that report should go down (>= 0)  | `999`      |
+| Option                  | Description                                                                                                                                                                                                               | Default |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `-k, --kind`            | Kind is `audit` - `changes` - `report`                                                                                                                                                                                    | `audit` |
+| `-s, --sequence`        | Day interval for Git history audit (whole number >= 1)                                                                                                                                                                    | `7`     |
+| `-m, --max-months`      | Maximum age for audit, in months (whole number >= 1)                                                                                                                                                                      | `3`     |
+| `-p, --path`            | Output path for the generated report                                                                                                                                                                                      | `tmp`   |
+| `-n, --nvm-path`        | Determine if should use nvm Eg: `~/.nvm/nvm.sh`                                                                                                                                                                           | ``      |
+| `-i, --install-command` | Command to install dependencies at each audited commit. Default: detected from the lockfile (`npm ci`, `yarn install --frozen-lockfile`/`--immutable`, `pnpm install --frozen-lockfile`, `bun install --frozen-lockfile`) | _auto_  |
+| `--skip-install`        | Do not install dependencies at each commit; reuse the current `node_modules`                                                                                                                                              | `false` |
+| `-rp, --report-path`    | What is the path to run report Eg: `/app`                                                                                                                                                                                 | `/`     |
+| `-rd, --report-depth`   | What is the depth level that report should go down (>= 0)                                                                                                                                                                 | `999`   |
 
-> **Note:** `kind` `audit` will use `-s` `-m` `-p` `-n` options. 
+> **Note:** `kind` `audit` will use `-s` `-m` `-p` `-n` `-i` `--skip-install` options.
 > **Note:** `kind` `changes` do not use any options.
 > **Note:** `kind` `report` will use `-rp` `-rd` options.
 
@@ -78,6 +81,7 @@ tmp/iron-golem-ts/report.html
 ```
 
 You'll see:
+
 - A chart of error counts over time.
 - A table showing error codes, how often they appear, and their severity.
 - A table files with error count and codes.
@@ -101,6 +105,7 @@ tmp/iron-golem-ts/
 ## 🧠 How Audit History Works
 
 - Walks backward in Git history (e.g., one per day or week).
+- Installs dependencies at each commit with the project's own package manager (npm, Yarn classic or berry, pnpm, bun), detected per commit from `package.json`'s `packageManager` field or the lockfile. Override with `-i`, or skip with `--skip-install` when dependencies did not change over the period (much faster).
 - Runs `tsc --noEmit` at each point in time with `strict` and `strictNullChecks` enabled for high type safety.
 - Collects errors and maps them with timestamps + commit hashes.
 - Outputs a report with trends and breakdowns.
@@ -146,6 +151,7 @@ npm run precommit:tsc
 ```
 
 Example:
+
 ```bash
 vc-fenx on  develop [⇣+] via ⬢ v22.15.0
 ➜ git commit -m "Init commit"
@@ -166,7 +172,7 @@ To generate a report by folder:
 ```jsonc
 // package.json
 "scripts": {
-  "report:tsc": "iron-golem-ts -k report -rp /config -rd 3" 
+  "report:tsc": "iron-golem-ts -k report -rp /config -rd 3"
 }
 ```
 
@@ -177,6 +183,7 @@ npm run report:tsc
 ```
 
 Example:
+
 ```bash
 🚀 Iron Golem is running...
 Legend: 🔴 ≥75% | 🟠 50–74% | 🟢 25–49% | ⚪ <25% (relative to parent folder)
@@ -236,12 +243,6 @@ npx iron-golem-ts -k report
 Releases are automated. Pushing or merging to `main` runs
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which publishes
 **only if the `version` in `package.json` is not already on npm**
-
----
-
-## 🧶 TODO:
-
-- Support Yarn
 
 ---
 

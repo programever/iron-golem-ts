@@ -7,6 +7,7 @@ import { runAudit } from './lib/audit';
 import { runAuditChanges } from './lib/auditChanges';
 import { runReport } from './lib/report';
 import { generateHtmlReport } from './lib/htmlReport';
+import { InstallStrategy } from './lib/packageManager';
 import { countDecoder, nonNegativeCountDecoder } from './data/decoders';
 
 const optionsDecoder = JD.object({
@@ -15,9 +16,24 @@ const optionsDecoder = JD.object({
   maxMonths: countDecoder,
   path: JD.string,
   nvmPath: JD.string,
+  installCommand: JD.string,
+  skipInstall: JD.boolean,
   reportPath: JD.string,
   reportDepth: nonNegativeCountDecoder
 });
+
+function toInstallStrategy(installCommand: string, skipInstall: boolean): InstallStrategy {
+  if (skipInstall && installCommand !== '') {
+    throw new Error('💀 --skip-install and --install-command cannot be used together');
+  }
+  if (skipInstall) {
+    return { type: 'skip' };
+  }
+  if (installCommand !== '') {
+    return { type: 'command', command: installCommand };
+  }
+  return { type: 'auto' };
+}
 
 const program = new Command();
 
@@ -29,6 +45,12 @@ program
   .option('-m, --max-months <months>', 'Maximum age for git history audit in months', '3')
   .option('-p, --path <path>', 'Path to generated file', 'tmp')
   .option('-n, --nvm-path <path>', 'Determine if should use nvm, Eg: ~/.nvm/nvm.sh', '')
+  .option(
+    '-i, --install-command <command>',
+    'Command to install dependencies at each commit (default: detected from the lockfile)',
+    ''
+  )
+  .option('--skip-install', 'Do not install dependencies at each commit', false)
   .option('-rp, --report-path <path>', 'Path to run report', '/')
   .option('-rd, --report-depth <number>', 'How deep the report should go down?', '999')
   .action(async (rawOpts: unknown) => {
@@ -50,7 +72,8 @@ program
           sequence: opts.sequence,
           maxMonthAgo: opts.maxMonths,
           pathStr: opts.path,
-          nvmPath: opts.nvmPath === '' ? null : opts.nvmPath
+          nvmPath: opts.nvmPath === '' ? null : opts.nvmPath,
+          install: toInstallStrategy(opts.installCommand, opts.skipInstall)
         });
         await generateHtmlReport(opts.path, results);
         console.info(

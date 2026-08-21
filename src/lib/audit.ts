@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseTscErrors, runTsc } from './tsc';
+import { detectPackageManager, InstallStrategy, resolveInstallCommand } from './packageManager';
 import { format, getDateMonthsAgo, subDays } from '../data/date';
 import * as JD from 'decoders';
 
@@ -10,6 +11,7 @@ export type AuditOptions = {
   sequence: number;
   maxMonthAgo: number;
   nvmPath: string | null;
+  install: InstallStrategy;
 };
 
 export type AuditData = {
@@ -28,11 +30,18 @@ const auditDataDecoder = JD.exact({
   errors: JD.record(JD.array(JD.number))
 });
 
+/** Everything needed to put the working tree back after a checkout. */
+type Environment = {
+  nvmPath: string | null;
+  install: InstallStrategy;
+};
+
 export async function runAudit({
   pathStr,
   sequence,
   maxMonthAgo,
-  nvmPath
+  nvmPath,
+  install
 }: AuditOptions): Promise<AuditData[]> {
   if (!Number.isInteger(sequence) || sequence < 1) {
     throw new Error('💀 Sequence must be a whole number of days >= 1');
@@ -42,7 +51,9 @@ export async function runAudit({
   }
 
   throwIfUnCommittedChanges();
+  logInstallStrategy(install);
 
+  const environment: Environment = { nvmPath, install };
   const currentBranch = execSync('git rev-parse --abbrev-ref HEAD', { stdio: 'pipe' })
     .toString()
     .trim();
@@ -66,7 +77,7 @@ export async function runAudit({
   // Ctrl-C -- has to put the repository back on the original branch.
   const onInterrupt = (): void => {
     console.info('\n🧹 Interrupted, restoring your branch...');
-    revertToOriginalBranch(nvmPath, currentBranch);
+    revertToOriginalBranch(environment, currentBranch);
     process.exit(130);
   };
   process.on('SIGINT', onInterrupt);
@@ -74,11 +85,11 @@ export async function runAudit({
 
   try {
     const commits = generateCommits(generateCommitOptions, []);
-    return generateAuditData(nvmPath, cachePath, cache, commits);
+    return generateAuditData(environment, cachePath, cache, commits);
   } finally {
     process.off('SIGINT', onInterrupt);
     process.off('SIGTERM', onInterrupt);
-    revertToOriginalBranch(nvmPath, currentBranch);
+    revertToOriginalBranch(environment, currentBranch);
   }
 }
 
@@ -91,6 +102,20 @@ function throwIfUnCommittedChanges() {
     throw new Error(
       '💀 Uncommitted changes detected. Please commit or stash them before running the audit.'
     );
+  }
+}
+
+function logInstallStrategy(install: InstallStrategy): void {
+  switch (install.type) {
+    case 'auto':
+      console.info(`📦 Installing dependencies with ${detectPackageManager(process.cwd())}`);
+      break;
+    case 'command':
+      console.info(`📦 Installing dependencies with: ${install.command}`);
+      break;
+    case 'skip':
+      console.info('📦 Skipping dependency install (reusing current node_modules)');
+      break;
   }
 }
 
@@ -140,7 +165,7 @@ function generateCommits(
 }
 
 function generateAuditData(
-  nvmPath: string | null,
+  environment: Environment,
   cachePath: string,
   cache: Record<string, AuditData>,
   commits: CommitData[]
@@ -151,16 +176,16 @@ function generateAuditData(
   }
 
   const { hash, targetDate, commitDate } = commit;
-  const auditData = processCommit(nvmPath, hash, targetDate, commitDate, cache);
+  const auditData = processCommit(environment, hash, targetDate, commitDate, cache);
 
   // Keep mutating the cache and keep writing it to the file
   fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2), 'utf-8');
 
-  return [auditData, ...generateAuditData(nvmPath, cachePath, cache, rest)];
+  return [auditData, ...generateAuditData(environment, cachePath, cache, rest)];
 }
 
 function processCommit(
-  nvmPath: string | null,
+  environment: Environment,
   hash: string,
   targetDate: Date,
   commitDate: Date,
@@ -175,10 +200,7 @@ function processCommit(
 
   execSync(`git checkout ${hash}`, { stdio: 'ignore' });
   execSync('git reset --hard', { stdio: 'ignore' });
-  if (nvmPath) {
-    useNvm(nvmPath);
-  }
-  execSync('npm ci --silent', { stdio: 'ignore' });
+  prepareEnvironment(environment, hash.slice(0, 7));
 
   const result: AuditData = {
     hash: hash,
@@ -191,6 +213,29 @@ function processCommit(
 
   execSync('git reset --hard', { stdio: 'ignore' });
   return result;
+}
+
+/** Selects the Node version and installs dependencies for the checked-out tree. */
+function prepareEnvironment({ nvmPath, install }: Environment, label: string): void {
+  if (nvmPath) {
+    useNvm(nvmPath);
+  }
+
+  // Resolved per commit: the lockfile (and so the package manager) can change
+  // across history.
+  const command = resolveInstallCommand(install, process.cwd());
+  if (command === null) {
+    return;
+  }
+
+  try {
+    execSync(command, { stdio: 'ignore' });
+  } catch {
+    throw new Error(
+      `💀 Installing dependencies failed at ${label} using \`${command}\`. ` +
+        'Use --install-command to override it, or --skip-install to reuse the current node_modules.'
+    );
+  }
 }
 
 function useNvm(nvmPath: string): void {
@@ -223,10 +268,7 @@ function logAuditData(auditData: AuditData): void {
   );
 }
 
-function revertToOriginalBranch(nvmPath: string | null, currentBranch: string): void {
+function revertToOriginalBranch(environment: Environment, currentBranch: string): void {
   execSync(`git reset --hard && git checkout ${currentBranch}`, { stdio: 'ignore' });
-  if (nvmPath) {
-    useNvm(nvmPath);
-  }
-  execSync('npm ci --silent', { stdio: 'ignore' });
+  prepareEnvironment(environment, currentBranch);
 }

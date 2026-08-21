@@ -43,11 +43,11 @@ function git(args: string[], extraEnv: Record<string, string> = {}): string {
   }).trim();
 }
 
-function runCli(args: string[]): RunResult {
+function runCli(args: string[], extraEnv: Record<string, string> = {}): RunResult {
   try {
     const stdout = execFileSync(process.execPath, [CLI, ...args], {
       cwd: fixture,
-      env: gitEnv,
+      env: { ...gitEnv, ...extraEnv },
       encoding: 'utf-8',
       stdio: 'pipe'
     });
@@ -225,5 +225,54 @@ describe('argument validation', () => {
     const result = runCli(['-k', 'bogus']);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /audit.*changes.*report/);
+  });
+});
+
+describe('iron-golem-ts -k audit install strategies', () => {
+  // A fresh output directory outside the fixture, so the cache from the main
+  // audit test is not reused and the fixture's tree stays clean.
+  function freshOutDir(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'iron-golem-e2e-out-'));
+  }
+
+  it('--skip-install reuses the existing node_modules', () => {
+    const out = freshOutDir();
+    try {
+      const result = runCli(['-k', 'audit', '-s', '30', '-m', '3', '-p', out, '--skip-install']);
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /Skipping dependency install/);
+      assert.ok(fs.existsSync(path.join(out, 'iron-golem-ts', 'report.html')));
+      assert.equal(git(['status', '--porcelain']), '');
+    } finally {
+      fs.rmSync(out, { recursive: true, force: true });
+    }
+  });
+
+  it('--install-command runs the given command at every commit and on restore', () => {
+    const out = freshOutDir();
+    const marker = path.join(out, 'installs.log');
+    // Appends one line per invocation; reads the path from the environment so
+    // no quoting survives the shell round-trip.
+    const command = `node -e "require('fs').appendFileSync(process.env.MARKER, 'x\\n')"`;
+    try {
+      const result = runCli(
+        ['-k', 'audit', '-s', '30', '-m', '3', '-p', out, '--install-command', command],
+        { MARKER: marker }
+      );
+      assert.equal(result.status, 0, result.stderr);
+
+      // Two distinct commits are audited, plus the final restore of `main`.
+      const runs = fs.readFileSync(marker, 'utf-8').split('\n').filter(Boolean).length;
+      assert.equal(runs, 3);
+      assert.equal(git(['status', '--porcelain']), '');
+    } finally {
+      fs.rmSync(out, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects --skip-install together with --install-command', () => {
+    const result = runCli(['-k', 'audit', '--skip-install', '--install-command', 'true']);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /cannot be used together/);
   });
 });

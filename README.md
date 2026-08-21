@@ -10,7 +10,7 @@ It helps your team track and reduce `tsc` errors with visual reports.
 - ⏳ **Time-travel Debugging**: Check how your TypeScript errors evolve across commits.
 - 📊 **Visual Reports**: Generates an HTML chart of error counts over time.
 - 🔎 **Error Breakdown**: Shows a table with error codes, counts, severity, and messages.
-- 🧠 **Severity Analysis**: Classifies errors into 🔴 High, 🟠 Medium, and 🟢 Low severity.
+- 🧠 **Severity Analysis**: Classifies errors into 🔴 High, 🟠 Medium, and 🟢 Low severity. Error messages come straight from the audited project's own TypeScript, so they always match the compiler that produced them.
 - 🧪 **Strict Audit Mode**: Adds a `tsc --noEmit` pre-commit script to prevent regressions.
 - 💾 **Safe & Cached**: Uses Git safely, always resets to your working branch.
 
@@ -117,7 +117,9 @@ tmp/iron-golem-ts/
 ## 🛑 Safety & Git Awareness
 
 - Uses your current working branch (e.g., `develop`).
-- Aborts if there are uncommitted files.
+- Aborts if there are uncommitted files. Add the output directory (`tmp/` by
+  default) to your `.gitignore`, otherwise the report from one audit will block
+  the next one.
 - Resets back to the original working branch after completion, including when the
   audit fails part-way through or you interrupt it with Ctrl-C.
 - Your `tsconfig.json` is temporarily rewritten to force strict mode, then restored
@@ -205,21 +207,35 @@ Tests use the built-in Node test runner (`node --test`); no extra dependency is
 required. They live in `test/`, mirroring the `src/` layout, and are type-checked
 and linted along with the source but excluded from the published build.
 
+`test/e2e/` builds the real CLI and drives it against a throwaway git repository
+with backdated commits, covering all three modes end to end (including the
+history walk, branch restore and `tsconfig.json` round-trip). It is fully
+offline and runs as part of `npm test`.
+
+To see a populated HTML report without a real project, seed a fake one. The
+script creates three months of weekly commits whose strict-mode error count
+rises and then falls, runs the audit, and prints the report path:
+
+```bash
+npm run example     # writes tmp/example-project/ and prints the report path
+```
+
+To try the built package by hand against any project:
+
+```bash
+npm run prePublish && npm pack          # produces iron-golem-ts-<version>.tgz
+cd /path/to/some-project
+npm install --no-save /path/to/iron-golem-ts-<version>.tgz
+npx iron-golem-ts -k report
+```
+
 ---
 
 ## 🚢 Releasing
 
 Releases are automated. Pushing or merging to `main` runs
 [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which publishes
-**only if the `version` in `package.json` is not already on npm**:
-
-```bash
-npm version patch   # or minor / major
-git push --follow-tags
-```
-
-Requires an npm token with write access to this package, stored as the `NPM_TOKEN`
-secret on the `Production` environment.
+**only if the `version` in `package.json` is not already on npm**
 
 ---
 

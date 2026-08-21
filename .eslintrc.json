@@ -1,4 +1,5 @@
 {
+  "ignorePatterns": ["dist/", "tmp/", "node_modules/"],
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "project": "./tsconfig.json",
@@ -8,7 +9,9 @@
   },
   "settings": {
     "import/extensions": [".ts"],
-    "import/resolver": { "typescript": {} }
+    "import/resolver": {
+      "typescript": {}
+    }
   },
   "extends": [
     "plugin:import/recommended",
@@ -16,11 +19,7 @@
     "plugin:@typescript-eslint/recommended",
     "prettier"
   ],
-  "plugins": [
-    "@typescript-eslint",
-    "eslint-comments",
-    "prettier"
-  ],
+  "plugins": ["@typescript-eslint", "eslint-comments", "prettier"],
   "rules": {
     "import/no-cycle": "error",
     "import/no-named-as-default-member": "off",

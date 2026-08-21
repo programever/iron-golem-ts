@@ -17,8 +17,8 @@ jobs:
   publish:
     needs: check
     runs-on: ubuntu-latest
-    # Required for `secrets.NPM_TOKEN` to resolve: it is an *environment*
-    # secret, which is only exposed to jobs that declare that environment.
+    # Named here because the npm trusted publisher is registered against this
+    # environment; the OIDC claim must match it.
     environment:
       name: Production
       url: https://www.npmjs.com/package/iron-golem-ts
@@ -51,16 +51,11 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # Fail here rather than after building, with a message that says what to do.
-      - name: Check the npm token is configured
+      # Trusted publishing needs npm >= 11.5.1; the version bundled with Node
+      # is not guaranteed to be recent enough.
+      - name: Use a trusted-publishing capable npm
         if: steps.version.outputs.publish == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::The NPM_TOKEN repository secret is empty or missing. Add it under Settings > Secrets and variables > Actions."
-            exit 1
-          fi
+        run: npm install -g npm@latest
 
       - name: Install dependencies
         if: steps.version.outputs.publish == 'true'
@@ -90,11 +85,12 @@ jobs:
             console.log("Tarball OK, " + files.length + " files.");
           '
 
+      # Authenticated by OIDC via `id-token: write`, not by a token: tokens that
+      # bypass 2FA are being withdrawn for direct publishing. Provenance is
+      # generated automatically under trusted publishing.
       - name: Publish to npm
         if: steps.version.outputs.publish == 'true'
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Tag the release
         if: steps.version.outputs.publish == 'true'

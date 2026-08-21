@@ -17,6 +17,11 @@ jobs:
   publish:
     needs: check
     runs-on: ubuntu-latest
+    # Required for `secrets.NPM_TOKEN` to resolve: it is an *environment*
+    # secret, which is only exposed to jobs that declare that environment.
+    environment:
+      name: Production
+      url: https://www.npmjs.com/package/iron-golem-ts
     permissions:
       contents: write # push the version tag
       id-token: write # npm provenance
@@ -46,11 +51,45 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # Fail here rather than after building, with a message that says what to do.
+      - name: Check the npm token is configured
+        if: steps.version.outputs.publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::The NPM_TOKEN repository secret is empty or missing. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
       - name: Install dependencies
         if: steps.version.outputs.publish == 'true'
         run: npm ci
 
-      # `prepublishOnly` builds dist/, and `files` limits the tarball to it.
+      # Built explicitly rather than relying only on the `prepublishOnly` hook,
+      # so that dropping that script cannot silently ship an empty package.
+      - name: Build
+        if: steps.version.outputs.publish == 'true'
+        run: npm run build
+
+      # A tarball without the CLI still publishes successfully and breaks every
+      # consumer, so check the contents before handing it to the registry.
+      - name: Verify the tarball contains the built CLI
+        if: steps.version.outputs.publish == 'true'
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          node -e '
+            const pack = require(process.env.RUNNER_TEMP + "/pack.json");
+            const files = pack[0].files.map((f) => f.path);
+            const missing = ["dist/index.js", "package.json"].filter((f) => !files.includes(f));
+            if (missing.length > 0) {
+              console.error("Missing from tarball: " + missing.join(", "));
+              console.error("Tarball contains: " + files.join(", "));
+              process.exit(1);
+            }
+            console.log("Tarball OK, " + files.length + " files.");
+          '
+
       - name: Publish to npm
         if: steps.version.outputs.publish == 'true'
         run: npm publish --provenance --access public

@@ -11,7 +11,8 @@
     "tsc": "tsc --noEmit",
     "lint": "eslint . --ext .ts",
     "test": "node --require ts-node/register --test test/*/*.test.ts",
-    "check": "npm run tsc && npm run lint && npm run test"
+    "check": "npm run tsc && npm run lint && npm run test",
+    "prePublish": "npm run build"
   },
   "dependencies": {
     "commander": "^11.0.0",

@@ -209,26 +209,17 @@ and linted along with the source but excluded from the published build.
 
 ## 🚢 Releasing
 
-Publishing is automated. Pushing (or merging) to `main` runs CI on Node 20, 22 and
-24, and then publishes to npm **only if `version` in `package.json` is not already
-on the registry**. Pushes that do not change the version pass through without
-publishing.
-
-To cut a release:
+Releases are automated. Pushing or merging to `main` runs
+[`.github/workflows/publish.yml`](.github/workflows/publish.yml), which publishes
+**only if the `version` in `package.json` is not already on npm**:
 
 ```bash
 npm version patch   # or minor / major
 git push --follow-tags
 ```
 
-The workflow builds `dist/` via `prepublishOnly`, publishes with
-[npm provenance](https://docs.npmjs.com/generating-provenance-statements), and
-tags the commit `v<version>`.
-
-**One-time setup:** add an npm
-[granular access token](https://docs.npmjs.com/creating-and-viewing-access-tokens)
-with publish rights for this package as the repository secret `NPM_TOKEN`
-(*Settings → Secrets and variables → Actions*).
+Requires an npm token with write access to this package, stored as the `NPM_TOKEN`
+secret on the `Production` environment.
 
 ---
 

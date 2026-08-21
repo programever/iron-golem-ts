@@ -75,7 +75,13 @@ jobs:
           npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
           node -e '
             const pack = require(process.env.RUNNER_TEMP + "/pack.json");
-            const files = pack[0].files.map((f) => f.path);
+            // npm <= 11 emits an array; npm >= 12 emits an object keyed by package name.
+            const entry = Array.isArray(pack) ? pack[0] : Object.values(pack)[0];
+            if (!entry || !Array.isArray(entry.files)) {
+              console.error("Unrecognized npm pack --json output shape.");
+              process.exit(1);
+            }
+            const files = entry.files.map((f) => f.path);
             const missing = ["dist/index.js", "package.json"].filter((f) => !files.includes(f));
             if (missing.length > 0) {
               console.error("Missing from tarball: " + missing.join(", "));
